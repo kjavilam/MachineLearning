@@ -1,0 +1,107 @@
+---
+title: "Machine Learning"
+author: "Kelly Avila"
+date: "7/7/2020"
+output: html_document
+---
+
+## Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. 
+
+## Data
+The training data for this project are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+##Preliminary Work
+
+## How the model was built
+
+The outcome variable is class, a factor variable with 5 levels. For this data set, “participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in 5 different fashions: exactly according to the specification (Class A); 
+throwing the elbows to the front (Class B); lifting the dumbbell only halfway (Class C); 
+lowering the dumbbell only halfway (Class D); throwing the hips to the front (Class E).
+
+## Load Libraries and data
+
+```{r}
+library(ggplot2)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(RColorBrewer)
+library(rattle)
+library(kernlab)
+library(randomForest)
+library(knitr)
+library(e1071)
+```
+
+##Load the data
+
+```{r}
+training <- read.csv("pml-training.csv", na.strings=c("NA","#DIV/0!",""))
+testing <- read.csv("pml-testing.csv", na.strings=c("NA","#DIV/0!",""))
+```
+
+## Remove unecessary colums
+
+```{r}
+train.data.clean1 <- training[,8:length(colnames(training))]
+test.data.clean1 <- testing[,8:length(colnames(testing))]
+```
+
+```{r}
+train.data.clean1 <- train.data.clean1[, colSums(is.na(train.data.clean1)) == 0] 
+test.data.clean1 <- test.data.clean1[, colSums(is.na(test.data.clean1)) == 0] 
+```
+
+# Check for near zero variance predictors and drop them if necessary
+
+```{r}
+nzv <- nearZeroVar(train.data.clean1,saveMetrics=TRUE)
+zero.var.ind <- sum(nzv$nzv)
+
+if ((zero.var.ind>0)) {
+        train.data.clean1 <- train.data.clean1[,nzv$nzv==FALSE]
+}
+```
+
+## Slice the data for cross validation
+
+The training data is divided into two sets. This first is a training set with 70% of the data which is used to train the model. The second is a validation set used to assess model performance.
+
+```{r}
+in.training <- createDataPartition(train.data.clean1$classe, p=0.70, list=F)
+train.data.final <- train.data.clean1[in.training, ]
+validate.data.final <- train.data.clean1[-in.training, ]
+```
+
+## Model Development
+
+```{r}
+control.parms <- trainControl(method="cv", 5)
+rf.model <- train(classe ~ ., data=train.data.final, method="rf",
+                 trControl=control.parms, ntree=251)
+rf.model
+```
+
+## Run the model
+The model is applied to the test data to produce the results.
+
+```{r}
+results <- predict(rf.model, 
+                   test.data.clean1[, -length(names(test.data.clean1))])
+results
+```
+
+## Decision Tree Visualization
+
+```{r}
+treeModel <- rpart(classe ~ ., data=train.data.final, method="class")
+fancyRpartPlot(treeModel)
+```
+
+## Reference
+1. Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human ’13). Stuttgart, Germany: ACM SIGCHI, 2013.
